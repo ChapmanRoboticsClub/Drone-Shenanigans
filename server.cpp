@@ -22,41 +22,53 @@ typedef int SOCKET_TYPE;
 
 int main() {
     #ifdef _WIN32
-    WSADATA wsa;
-	printf("\nInitialising Winsock...");
-	if (WSAStartup(MAKEWORD(2,2),&wsa) != 0)
-	{
-		printf("Failed. Error Code : %d",WSAGetLastError());
-		return 1;
-	}
-	printf("Initialised.\n");
+        WSADATA wsa;
+        printf("\nInitialising Winsock...");
+        if (WSAStartup(MAKEWORD(2,2),&wsa) != 0) {
+            printf("Failed. Error Code : %d",WSAGetLastError());
+            return 1;
+        }
+        printf("Initialised.\n");
 	#endif
 
     struct sockaddr_in my_addr, sen_addr;
 
-    // Step 1: Create a socket
-    SOCKET_TYPE sock = socket(AF_INET , SOCK_STREAM , 0);
+    // Step 1: Create socket
+    SOCKET_TYPE listeningSocket = socket(AF_INET , SOCK_STREAM , 0);
 
     // Step 2: Bind to a port number
     memset(&my_addr, 0, sizeof(struct sockaddr_in));
 	my_addr.sin_family = AF_INET;
 	my_addr.sin_port = htons(9090);
-	bind(sock, (struct sockaddr *)&my_addr, sizeof(struct sockaddr_in));
+	bind(listeningSocket, (struct sockaddr *)&my_addr, sizeof(struct sockaddr_in));
 
     // Step 3: Listen for connections
-    listen(sock, 5);
+    listen(listeningSocket, 5);
 
-    // Step 4: Accept a connection request
+
+    // MAKE THREAD HERE!
+    // Have threads figure out whether sender is Player, Station, or Drone on connect.  Then, process separately in separate functions dependent on that (Switch statement!)
+
+    // Accept a connection request
 	socklen_t sen_len = sizeof(sen_addr);
-	SOCKET_TYPE newsock = accept(sock, (struct sockaddr *)&sen_addr, &sen_len);
+	SOCKET_TYPE newsock = accept(listeningSocket, (struct sockaddr *)&sen_addr, &sen_len);
 
-    // Step 5: Send data to the connection
-    std::string message = "Hello From Server!";
-    send(newsock, message.c_str(), message.length() + 1, 0);     // Adding 1 to message.length() to allow for the null byte to be sent through
+    char buffer[100];
+    int len = recv(newsock, buffer, 100, 0);
+    std::cout << "Receieved " << len << " bytes from client:" << std::endl;
+    std::cout << buffer << std::endl;
+
+    // Game Start!
+
+    // Join threads here, after the game has ended
+
+    // Cleanup and close sockets as necessary
     #ifdef _WIN32
-    closesocket(sock);
+        closesocket(listeningSocket);
+        closesocket(newsock);
     #else
-    close(sock);
+        close(listeningSocket);
+        close(newsock);
     #endif
 
     std::cout << "Program terminated" << std::endl;
