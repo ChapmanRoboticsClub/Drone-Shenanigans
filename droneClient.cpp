@@ -49,7 +49,10 @@ int main() {
     char message = 'D';
     send(sock, &message, 1, 0);     // Adding 1 to message.length() to allow for the null byte to be sent through
 
-    // TODO: Game Loop until Server says to quit
+    // TODO: Actually check the FIN was received
+    char buffer[100];
+    int len = recv(sock, buffer, 100, 0);
+    std::cout << "FIN RECEIEVED(" << len << "): " << buffer << std::endl;
 
     #ifdef _WIN32
     closesocket(sock);

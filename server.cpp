@@ -20,12 +20,13 @@ typedef int SOCKET_TYPE;
 #include <iostream>
 #include <string>
 #include <thread>
+#include <chrono>
 #include <vector>
 
-void processConnection(SOCKET_TYPE newsock);
-void processDrone();
-void processClient();
-void processStation();
+void processConnection(SOCKET_TYPE sock, bool* gameOver);
+void processDrone(SOCKET_TYPE sock, bool* gameOver);
+void processPlayer(SOCKET_TYPE sock, bool* gameOver);
+void processStation(SOCKET_TYPE sock, bool* gameOver);
 
 int main() {
     #ifdef _WIN32
@@ -54,6 +55,7 @@ int main() {
 
     std::vector<std::thread*> threads;
     std::vector<SOCKET_TYPE> sockets;
+    bool gameOver = false;
 
     // NOTE: Hard coded to look for exactly 3 connections; needs to change to look for a certain number of drones, players, stations, or to just wait for a "START GAME" input
     for(int i = 0; i < 3; ++i) {
@@ -61,11 +63,21 @@ int main() {
         // Accept a connection request
         socklen_t sen_len = sizeof(sen_addr);
         SOCKET_TYPE newsock = accept(listeningSocket, (struct sockaddr *)&sen_addr, &sen_len);
-        threads.push_back(new std::thread(processConnection, newsock));
+        threads.push_back(new std::thread(processConnection, newsock, &gameOver));
         sockets.push_back(newsock);
     }
 
+    // Sleeping for 1 sec to ensure press enter comes at the bottom
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+
     // Game Start!
+    std::cout << "Press Enter!" << std::endl;
+    std::string temp;
+    std::getline(std::cin, temp);
+
+    // Game End
+    gameOver = true;
+
 
     // Join threads here, after the game has ended
     for(int i = 0; i < threads.size(); ++i) {
@@ -90,24 +102,24 @@ int main() {
 	return 0;
 }
 
-void processConnection(SOCKET_TYPE newsock) {
+void processConnection(SOCKET_TYPE sock, bool* gameOver) {
     std::cout << "Thread to process incoming connection" << std::endl;
-        char buffer[100];
-    int len = recv(newsock, buffer, 100, 0);
+    char buffer[100];
+    int len = recv(sock, buffer, 100, 0);
 
     if(len == 1) {
         switch(buffer[0]) {
             case 'D':
                 std::cout << "I just connected a drone!" << std::endl;
-                // TODO: Make droneProcess call and keep this thread there in a while loop until game is over
+                processDrone(sock, gameOver);
                 break;
             case 'P':
                 std::cout << "I just connected a player!" << std::endl;
-                // TODO: Make playerProcess call and keep this thread there in a while loop until game is over
+                processPlayer(sock, gameOver);
                 break;
             case 'S':
                 std::cout << "I just connected a station!" << std::endl;
-                // TODO: Make stationProcess call and keep this thread there in a while loop until game is over
+                processStation(sock, gameOver);
                 break;
             default:
                 std::cout << "Unexpected identifier as first message: '" << buffer[0] << "'" << std::endl;
@@ -115,4 +127,31 @@ void processConnection(SOCKET_TYPE newsock) {
     } else {
         std::cout << "Unexpected byte count from first message: " << len << std::endl;
     }
+}
+
+void processDrone(SOCKET_TYPE sock, bool* gameOver) {
+    while(!(*gameOver)) {
+        // Spin lock
+    }
+    // Send FIN packet
+    char message[4] = "FIN";
+    send(sock, message, strlen(message) + 1, 0);
+}
+
+void processPlayer(SOCKET_TYPE sock, bool* gameOver) {
+    while(!(*gameOver)) {
+        // Spin lock
+    }
+    // Send FIN packet
+    char message[4] = "FIN";
+    send(sock, message, strlen(message) + 1, 0);
+}
+
+void processStation(SOCKET_TYPE sock, bool* gameOver) {
+    while(!(*gameOver)) {
+        // Spin lock
+    }
+    // Send FIN packet
+    char message[4] = "FIN";
+    send(sock, message, strlen(message) + 1, 0);
 }
