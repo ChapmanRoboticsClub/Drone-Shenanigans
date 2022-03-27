@@ -55,8 +55,24 @@ int main() {
 
     char buffer[100];
     int len = recv(newsock, buffer, 100, 0);
-    std::cout << "Receieved " << len << " bytes from client:" << std::endl;
-    std::cout << buffer << std::endl;
+
+    if(len == 1) {
+        switch(buffer[0]) {
+            case 'D':
+                std::cout << "I just connected a drone!" << std::endl;
+                break;
+            case 'P':
+                std::cout << "I just connected a player!" << std::endl;
+                break;
+            case 'S':
+                std::cout << "I just connected a station!" << std::endl;
+                break;
+            default:
+                std::cout << "Unexpected identifier as first message: '" << buffer[0] << "'" << std::endl;
+        }
+    } else {
+        std::cout << "Unexpected byte count from first message: " << len << std::endl;
+    }
 
     // Game Start!
 
