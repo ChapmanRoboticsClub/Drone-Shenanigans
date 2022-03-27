@@ -23,8 +23,7 @@ int main() {
     #ifdef _WIN32
     WSADATA wsa;
 	printf("\nInitialising Winsock...");
-	if (WSAStartup(MAKEWORD(2,2),&wsa) != 0)
-	{
+	if (WSAStartup(MAKEWORD(2,2),&wsa) != 0) {
 		printf("Failed. Error Code : %d",WSAGetLastError());
 		return 1;
 	}
