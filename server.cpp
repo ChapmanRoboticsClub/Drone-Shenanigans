@@ -23,12 +23,12 @@ typedef int SOCKET_TYPE;
 int main() {
     #ifdef _WIN32
         WSADATA wsa;
-        printf("\nInitialising Winsock...");
+        printf("\nInitializing Winsock...");
         if (WSAStartup(MAKEWORD(2,2),&wsa) != 0) {
             printf("Failed. Error Code : %d",WSAGetLastError());
             return 1;
         }
-        printf("Initialised.\n");
+        printf("Initialized.\n");
 	#endif
 
     struct sockaddr_in my_addr, sen_addr;
