@@ -1,0 +1,64 @@
+// NOTE: Windows needs to be compiled with -lWS2_32 for the WS2_32 library
+
+#ifdef _WIN32
+#include <winsock2.h>
+#include <Ws2tcpip.h>
+
+// Wanted to use SOCKET but that conflicted with mingW.  Unsure if SOCKET is defined in posix
+typedef unsigned int SOCKET_TYPE;
+#else
+// Currently assuming non-windows is POSIX, which may not be a safe assumption
+#include <sys/socket.h>
+#include <arpa/inet.h>
+#include <netdb.h>
+#include <unistd.h>
+
+typedef int SOCKET_TYPE;
+#endif
+
+
+#include <iostream>
+#include <string>
+
+int main() {
+    #ifdef _WIN32
+    WSADATA wsa;
+	printf("\nInitialising Winsock...");
+	if (WSAStartup(MAKEWORD(2,2),&wsa) != 0)
+	{
+		printf("Failed. Error Code : %d",WSAGetLastError());
+		return 1;
+	}
+	printf("Initialised.\n");
+	#endif
+
+    struct sockaddr_in my_addr, sen_addr;
+
+    // Step 1: Create a socket
+    SOCKET_TYPE sock = socket(AF_INET , SOCK_STREAM , 0);
+
+    // Step 2: Bind to a port number
+    memset(&my_addr, 0, sizeof(struct sockaddr_in));
+	my_addr.sin_family = AF_INET;
+	my_addr.sin_port = htons(9090);
+	bind(sock, (struct sockaddr *)&my_addr, sizeof(struct sockaddr_in));
+
+    // Step 3: Listen for connections
+    listen(sock, 5);
+
+    // Step 4: Accept a connection request
+	socklen_t sen_len = sizeof(sen_addr);
+	SOCKET_TYPE newsock = accept(sock, (struct sockaddr *)&sen_addr, &sen_len);
+
+    // Step 5: Send data to the connection
+    std::string message = "Hello From Server!";
+    send(newsock, message.c_str(), message.length() + 1, 0);     // Adding 1 to message.length() to allow for the null byte to be sent through
+    #ifdef _WIN32
+    closesocket(sock);
+    #else
+    close(sock);
+    #endif
+
+    std::cout << "Program terminated" << std::endl;
+	return 0;
+}
