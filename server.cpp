@@ -19,6 +19,13 @@ typedef int SOCKET_TYPE;
 
 #include <iostream>
 #include <string>
+#include <thread>
+#include <vector>
+
+void processConnection(SOCKET_TYPE newsock);
+void processDrone();
+void processClient();
+void processStation();
 
 int main() {
     #ifdef _WIN32
@@ -45,27 +52,62 @@ int main() {
     // Step 3: Listen for connections
     listen(listeningSocket, 5);
 
+    std::vector<std::thread*> threads;
+    std::vector<SOCKET_TYPE> sockets;
 
-    // MAKE THREAD HERE!
-    // Have threads figure out whether sender is Player, Station, or Drone on connect.  Then, process separately in separate functions dependent on that (Switch statement!)
+    // NOTE: Hard coded to look for exactly 3 connections; needs to change to look for a certain number of drones, players, stations, or to just wait for a "START GAME" input
+    for(int i = 0; i < 3; ++i) {
+        // Have threads figure out whether sender is Player, Station, or Drone on connect.  Then, process separately in separate functions dependent on that (Switch statement!)
+        // Accept a connection request
+        socklen_t sen_len = sizeof(sen_addr);
+        SOCKET_TYPE newsock = accept(listeningSocket, (struct sockaddr *)&sen_addr, &sen_len);
+        threads.push_back(new std::thread(processConnection, newsock));
+        sockets.push_back(newsock);
+    }
 
-    // Accept a connection request
-	socklen_t sen_len = sizeof(sen_addr);
-	SOCKET_TYPE newsock = accept(listeningSocket, (struct sockaddr *)&sen_addr, &sen_len);
+    // Game Start!
 
-    char buffer[100];
+    // Join threads here, after the game has ended
+    for(int i = 0; i < threads.size(); ++i) {
+        (*threads[i]).join();
+        delete threads[i];
+        // TODO: Close socket as thread is getting deleted; so probably have to keep track of those as well
+        #ifdef _WIN32
+            closesocket(sockets[i]);
+        #else
+            close(sockets[i]);
+        #endif
+    }
+
+    // Cleanup and close sockets as necessary
+    #ifdef _WIN32
+        closesocket(listeningSocket);
+    #else
+        close(listeningSocket);
+    #endif
+
+    std::cout << "Program terminated" << std::endl;
+	return 0;
+}
+
+void processConnection(SOCKET_TYPE newsock) {
+    std::cout << "Thread to process incoming connection" << std::endl;
+        char buffer[100];
     int len = recv(newsock, buffer, 100, 0);
 
     if(len == 1) {
         switch(buffer[0]) {
             case 'D':
                 std::cout << "I just connected a drone!" << std::endl;
+                // TODO: Make droneProcess call and keep this thread there in a while loop until game is over
                 break;
             case 'P':
                 std::cout << "I just connected a player!" << std::endl;
+                // TODO: Make playerProcess call and keep this thread there in a while loop until game is over
                 break;
             case 'S':
                 std::cout << "I just connected a station!" << std::endl;
+                // TODO: Make stationProcess call and keep this thread there in a while loop until game is over
                 break;
             default:
                 std::cout << "Unexpected identifier as first message: '" << buffer[0] << "'" << std::endl;
@@ -73,20 +115,4 @@ int main() {
     } else {
         std::cout << "Unexpected byte count from first message: " << len << std::endl;
     }
-
-    // Game Start!
-
-    // Join threads here, after the game has ended
-
-    // Cleanup and close sockets as necessary
-    #ifdef _WIN32
-        closesocket(listeningSocket);
-        closesocket(newsock);
-    #else
-        close(listeningSocket);
-        close(newsock);
-    #endif
-
-    std::cout << "Program terminated" << std::endl;
-	return 0;
 }
