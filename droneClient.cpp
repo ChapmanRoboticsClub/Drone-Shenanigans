@@ -46,7 +46,6 @@ int main() {
 	connect(sock, (struct sockaddr *)&dest, sizeof(struct sockaddr_in));
 
     // Step 4: Tell server that I'm a drone
-
     std::string message = "I am a drone!";
     send(sock, message.c_str(), message.length() + 1, 0);     // Adding 1 to message.length() to allow for the null byte to be sent through
 
