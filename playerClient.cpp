@@ -49,6 +49,7 @@ int main() {
     std::string message = "I am a player!";
     send(sock, message.c_str(), message.length() + 1, 0);     // Adding 1 to message.length() to allow for the null byte to be sent through
 
+    // TODO: Game Loop until server says to quit
 
     #ifdef _WIN32
     closesocket(sock);
