@@ -28,6 +28,8 @@ void processDrone(SOCKET_TYPE sock, bool* gameOver);
 void processPlayer(SOCKET_TYPE sock, bool* gameOver);
 void processStation(SOCKET_TYPE sock, bool* gameOver);
 
+extern int errno;
+
 int main() {
     #ifdef _WIN32
         WSADATA wsa;
@@ -130,8 +132,25 @@ void processConnection(SOCKET_TYPE sock, bool* gameOver) {
 }
 
 void processDrone(SOCKET_TYPE sock, bool* gameOver) {
+    char buffer[100];
+    int len;
+    fd_set fds;
+    FD_ZERO(&fds);
+    FD_SET(sock, &fds);
+
+    struct timeval tv;
+    tv.tv_usec = 100000;
     while(!(*gameOver)) {
         // Spin lock
+
+        // Use select before recv to prevent blocking
+        select(sock + 1, &fds, NULL, NULL, &tv);
+        if(FD_ISSET(sock, &fds)) {
+            len = recv(sock, buffer, 100, 0);
+            std::cout << "Received message (" << len << "): " << buffer << std::endl;   
+        } else {
+            FD_SET(sock, &fds);
+        }
     }
     // Send FIN packet
     char message[4] = "FIN";
@@ -141,6 +160,9 @@ void processDrone(SOCKET_TYPE sock, bool* gameOver) {
 void processPlayer(SOCKET_TYPE sock, bool* gameOver) {
     while(!(*gameOver)) {
         // Spin lock
+        char message[100] = "WAITING...";
+        send(sock, message, strlen(message) + 1, 0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     // Send FIN packet
     char message[4] = "FIN";
@@ -150,6 +172,9 @@ void processPlayer(SOCKET_TYPE sock, bool* gameOver) {
 void processStation(SOCKET_TYPE sock, bool* gameOver) {
     while(!(*gameOver)) {
         // Spin lock
+        char message[100] = "WAITING...";
+        send(sock, message, strlen(message) + 1, 0);
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
     // Send FIN packet
     char message[4] = "FIN";

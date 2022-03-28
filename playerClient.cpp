@@ -49,9 +49,17 @@ int main() {
     char message = 'P';
     send(sock, &message, 1, 0);     // Adding 1 to message.length() to allow for the null byte to be sent through
 
-    // TODO: Actually check the FIN was received
+    // Loop and receive packets until FIN is received
     char buffer[100];
-    int len = recv(sock, buffer, 100, 0);
+    int len;
+    while(true) {
+        len = recv(sock, buffer, 100, 0);
+        if(len == 4 && buffer[0] == 'F' && buffer[1] == 'I' && buffer[2] == 'N') { // Can simplify and look for F
+            break;
+        } else {
+            std::cout << "Received message (" << len << "): " << buffer << std::endl;
+        }
+    }
     std::cout << "FIN RECEIEVED(" << len << "): " << buffer << std::endl;
 
     #ifdef _WIN32
