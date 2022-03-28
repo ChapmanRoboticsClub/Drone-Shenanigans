@@ -54,13 +54,12 @@ int main() {
     int len;
     while(true) {
         len = recv(sock, buffer, 100, 0);
-        if(len == 4 && buffer[0] == 'F' && buffer[1] == 'I' && buffer[2] == 'N') { // Can simplify and look for F
+        if(len == 0) {
+            std::cout << "Orderly shutdown detected" << std::endl;
             break;
-        } else {
-            std::cout << "Received message (" << len << "): " << buffer << std::endl;
         }
+        std::cout << "Received message (" << len << "): " << buffer << std::endl;
     }
-    std::cout << "FIN RECEIEVED(" << len << "): " << buffer << std::endl;
 
     #ifdef _WIN32
     closesocket(sock);

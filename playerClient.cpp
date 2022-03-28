@@ -18,6 +18,8 @@ typedef int SOCKET_TYPE;
 
 #include <iostream>
 #include <string>
+#include <thread>
+#include <chrono>
 
 int main() {
     #ifdef _WIN32
@@ -48,19 +50,21 @@ int main() {
     // Step 4: Tell server that I'm a player
     char message = 'P';
     send(sock, &message, 1, 0);     // Adding 1 to message.length() to allow for the null byte to be sent through
+    std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
     // Loop and receive packets until FIN is received
     char buffer[100];
     int len;
+
     while(true) {
-        len = recv(sock, buffer, 100, 0);
-        if(len == 4 && buffer[0] == 'F' && buffer[1] == 'I' && buffer[2] == 'N') { // Can simplify and look for F
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        char message[100] = "Player Data Sent...";
+        len = send(sock, message, strlen(message) + 1, 0);
+        if(len == -1) {
+            std::cout << "Connection failed" << std::endl;
             break;
-        } else {
-            std::cout << "Received message (" << len << "): " << buffer << std::endl;
         }
     }
-    std::cout << "FIN RECEIEVED(" << len << "): " << buffer << std::endl;
 
     #ifdef _WIN32
     closesocket(sock);

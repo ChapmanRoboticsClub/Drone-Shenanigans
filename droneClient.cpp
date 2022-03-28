@@ -18,8 +18,8 @@ typedef int SOCKET_TYPE;
 
 #include <iostream>
 #include <string>
-#include <chrono>
 #include <thread>
+#include <chrono>
 
 int main() {
     #ifdef _WIN32
@@ -52,40 +52,19 @@ int main() {
     send(sock, &message, 1, 0);     // Adding 1 to message.length() to allow for the null byte to be sent through
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
 
-    // ERROR: Sending two messages together.  Resolved by sleep above.  Can setsockopt to disable packing, but should probably instead embrace fixed size messages
-
     // Loop and receive packets until FIN is received
     char buffer[100];
     int len;
-    fd_set fds;
-    FD_ZERO(&fds);
-    // What the heck this should be present to add the sock to the fd... but adding it in breaks everything
-    FD_SET(sock, &fds);
 
-    struct timeval tv;
-    tv.tv_usec = 100000;
-    int timer = 0;
     while(true) {
-        // Select to check for FIN
-        select(sock + 1, &fds, NULL, NULL, &tv);
-        if(FD_ISSET(sock, &fds)) {
-            len = recv(sock, buffer, 100, 0);
-            if(len == 4 && buffer[0] == 'F' && buffer[1] == 'I' && buffer[2] == 'N') { // Can simplify and look for F
-                break;
-            } else {
-                std::cout << "Received message (" << len << "): " << buffer << std::endl;
-            } 
-        } else {
-            FD_SET(sock, &fds);
-        }
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        timer = ++timer % 10;
-        if(timer == 0) {
-            char message[10] = "DroneData";
-            send(sock, message, strlen(message) + 1, 0);
+        char message[100] = "Drone Data Sent...";
+        len = send(sock, message, strlen(message) + 1, 0);
+        if(len == -1) {
+            std::cout << "Connection failed" << std::endl;
+            break;
         }
     }
-    std::cout << "FIN RECEIEVED(" << len << "): " << buffer << std::endl;
 
     #ifdef _WIN32
     closesocket(sock);
