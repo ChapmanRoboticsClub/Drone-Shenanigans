@@ -28,10 +28,7 @@ void setup() {
   WiFi.setPins(8, 7, 4, 2);
 
   Serial.begin(9600);
-  while (!Serial) {
-    ; // wait for serial port to connect. Needed for native USB port only
-  }
-
+  
     // attempt to connect to WiFi network:
   while (WiFi.status() != WL_CONNECTED) {
     Serial.println("Attempting to connect");
