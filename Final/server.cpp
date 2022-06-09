@@ -156,6 +156,10 @@ void processDrone(SOCKET_TYPE sock, bool* gameOver) {
 void processStation(SOCKET_TYPE sock, bool* gameOver) {
     int len;
     char buffer[100];
+    buffer[0] = 'E';
+    send(sock, buffer, 1, 0);
+    // Reusing buffer after; note how it's set by recv further down so we don't need to reset it here
+
     fd_set fds;
     FD_ZERO(&fds);
     FD_SET(sock, &fds);
@@ -177,6 +181,9 @@ void processStation(SOCKET_TYPE sock, bool* gameOver) {
                     std::cout << "B1: " << buffer[i] << "\tB2: " << buffer[i+1] << "\tB3: " << buffer[i+2] << std::endl;
                     if(buffer[i] == '1' && buffer[i+1] == '1' && buffer[i+2] == '1') {
                         std::cout << "ALL BUTTONS PRESSED!  :)" << std::endl;
+                        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+                        buffer[0] = 'E';
+                        send(sock, buffer, 1, 0);
                     }
                 }
             }

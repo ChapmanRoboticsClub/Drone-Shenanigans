@@ -11,6 +11,7 @@ bool b2;
 bool b2_prev;
 bool b3;
 bool b3_prev;
+bool enabled;
 
 // targetIP is ddd.ddd.ddd.ddd
 IPAddress targetIP(192, 168, 103, 2);
@@ -42,24 +43,39 @@ void setup() {
     // Say I'm a Station:
     client.print("S");
   }
-  
+
+  enabled = false;
 }
 
 void loop() {
   // put your main code here, to run repeatedly:
-  b1 = digitalRead(6);
-  digitalWrite(5, !b1);
-  b2 = digitalRead(10);
-  digitalWrite(9, !b2);
-  b3 = digitalRead(12);
-  digitalWrite(11, !b3);
-
-  digitalWrite(13, b1 && b2 && b3);
-  Serial.printf("B1: %d\tB2: %d\tB3: %d\n", b1, b2, b3);
-  if(b1_prev != b1 || b2_prev != b2 || b3_prev != b3) {
-    client.printf("%d%d%d", b1, b2, b3);
+  if (enabled) {
+    b1 = digitalRead(6);
+    digitalWrite(5, !b1);
+    b2 = digitalRead(10);
+    digitalWrite(9, !b2);
+    b3 = digitalRead(12);
+    digitalWrite(11, !b3);
+  
+    digitalWrite(13, b1 && b2 && b3);
+    Serial.printf("B1: %d\tB2: %d\tB3: %d\n", b1, b2, b3);
+    if(b1_prev != b1 || b2_prev != b2 || b3_prev != b3) {
+      client.printf("%d%d%d", b1, b2, b3);
+      if (b1 && b2 && b3) {
+        enabled = false;
+      }
+    }
+    b1_prev = b1;
+    b2_prev = b2;
+    b3_prev = b3;
+  } else {
+    digitalWrite(5, 0);
+    digitalWrite(9, 0);
+    digitalWrite(11, 0);
+    while(!client.available()) { 
+      ;; // Intentional null statement spinlock
+    }
+    client.read(); // TODO: Verify that the one character read is the proper one
+    enabled = true;
   }
-  b1_prev = b1;
-  b2_prev = b2;
-  b3_prev = b3;
 }
