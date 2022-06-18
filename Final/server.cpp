@@ -88,6 +88,9 @@ int main() {
     // TODO: Need synchronization on game start so first station can't be pressed early.
     // Game Start!
     std::cout << "Game Start!" << std::endl;
+
+    // TODO: Stopwatch start here
+
     for(int currentCycle = 1; currentCycle <= NUM_CYCLES; ++currentCycle) {
         std::cout << "Current Cycle: " << currentCycle << "/" << NUM_CYCLES << std::endl;
         activeStation = 0;
@@ -103,6 +106,8 @@ int main() {
     }
 
     gameOver = true;
+
+    // TODO: Stopwatch end here, display time
 
     std::cout << "Game Over!" << std::endl;
 
