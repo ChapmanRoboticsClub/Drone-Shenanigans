@@ -187,7 +187,6 @@ void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* 
     while (*gameOver) {
         // Spinlock until gameOver is disabled aka until game has begun
     }
-    std::cout << "Active station is: " << *activeStation << std::endl;
     int len;
     char buffer[100];
     buffer[0] = 'E';
@@ -258,6 +257,7 @@ void stationControl(bool* gameOver, int* activeStation, bool* stationComplete) {
         std::cout << "Current Cycle: " << currentCycle << "/" << NUM_CYCLES << std::endl;
         *activeStation = 0;
         while(*activeStation < NUM_STATIONS) {
+            std::cout << "Active station: " << *activeStation << std::endl;
         // NOTE: This loop does the job, but it seems a little less clean
             while(stationComplete[*activeStation] == false) {
                 // Spinlock until activeStation is properly pressed
@@ -269,5 +269,4 @@ void stationControl(bool* gameOver, int* activeStation, bool* stationComplete) {
     }
 
     *gameOver = true;
-    std::cout << "GAME OVER FROM LEAD" << std::endl;
 }
