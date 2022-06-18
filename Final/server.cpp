@@ -31,6 +31,10 @@ void processDrone(SOCKET_TYPE sock, bool* gameOver);
 void processPlayer(SOCKET_TYPE sock, bool* gameOver);
 void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete, int stationID);
 
+void stationControl(bool* gameOver, int* activeStation, bool* stationComplete);
+void playerControl();
+void droneControl();
+
 #define NUM_DRONES 0
 #define NUM_STATIONS 2
 #define NUM_PLAYERS 0
@@ -64,7 +68,7 @@ int main() {
 
     std::vector<std::thread*> threads;
     std::vector<SOCKET_TYPE> sockets;
-    bool gameOver = false;
+    bool gameOver = true;
     int activeStation = 0;
     int currentCycle = 0;
     bool stationComplete[NUM_STATIONS];
@@ -82,30 +86,21 @@ int main() {
         sockets.push_back(newsock);
     }
 
+    threads.push_back(new std::thread(stationControl, &gameOver, &activeStation, stationComplete));
+
     // Sleeping for 1 sec to ensure press enter comes at the bottom
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     // TODO: Need synchronization on game start so first station can't be pressed early.
     // Game Start!
     std::cout << "Game Start!" << std::endl;
+    gameOver = false;
 
     // TODO: Stopwatch start here
 
-    for(int currentCycle = 1; currentCycle <= NUM_CYCLES; ++currentCycle) {
-        std::cout << "Current Cycle: " << currentCycle << "/" << NUM_CYCLES << std::endl;
-        activeStation = 0;
-        while(activeStation < NUM_STATIONS) {
-        // NOTE: This loop does the job, but it seems a little less clean
-            while(stationComplete[activeStation] == false) {
-                // Spinlock until activeStation is properly pressed
-                // NOTE: When implmenting drones/players, we'll probably want 3 master threads, one for all drones, one for all stations, and one for all players
-            }
-            ++activeStation;
-            stationComplete[activeStation-1] = false; // Signaling to thread that activestation has been changed
-        }
+    while(!gameOver) {
+        // spinlock until stationControl calls the game to a close
     }
-
-    gameOver = true;
 
     // TODO: Stopwatch end here, display time
 
@@ -189,6 +184,9 @@ void processDrone(SOCKET_TYPE sock, bool* gameOver) {
 // TODO: Instead of processing everything in processStation, have processStation modify array of booleans simply stating "done" or "not done".  Do logic in main thread
 void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete, int stationID) {
     std::cout << "Station ID Connected is: " << stationID << std::endl;
+    while (*gameOver) {
+        // Spinlock until gameOver is disabled aka until game has begun
+    }
     std::cout << "Active station is: " << *activeStation << std::endl;
     int len;
     char buffer[100];
@@ -207,12 +205,10 @@ void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* 
     tv.tv_usec = 100000;
     
     while(!(*gameOver)) {
-        // Spin lock; will block on recv
         select(sock + 1, &fds, NULL, NULL, &tv);
         if(FD_ISSET(sock, &fds)) {
             len = recv(sock, buffer, 100, 0);
             buffer[len] = '\0';
-            // std::cout << "Received message (" << len << "): " << buffer << std::endl;
             if(len % 3 != 0) {
                 // TODO: If byte length -1, connection lost, so don't spam this message
                 std::cout << "Unexpected byte length(" << len << "), full message is " << buffer << std::endl;
@@ -224,11 +220,11 @@ void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* 
                         stationComplete[stationID] = true; // Letting the head thread know that this station has completed its task
                         
                         while(stationComplete[stationID]) {
-                            // First spinlock until master thread gest the chance to disable stationComplete (and modify activeStation so this isn't a passthrough)
+                            // First spinlock until head thread gest the chance to disable stationComplete (and modify activeStation so this isn't a passthrough)
                         }
                         
                         while(!*gameOver && *activeStation != stationID) {
-                            // Spinlock until the active station is this ID, and enable the relevant station when necessary
+                            // Spinlock until the active station is this ID, (waiting for head thread to tell me it's time to roll!)
                         }
                         buffer[0] = 'E';
                         send(sock, buffer, 1, 0);
@@ -250,4 +246,28 @@ void processPlayer(SOCKET_TYPE sock, bool* gameOver) {
         send(sock, message, strlen(message) + 1, 0);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     } */
+}
+
+void stationControl(bool* gameOver, int* activeStation, bool* stationComplete) {
+    std::cout << "stationControl READY!" << std::endl;
+    while (*gameOver) {
+        // Spinlock until gameOver is disabled aka until game has begun
+    }
+
+    for(int currentCycle = 1; currentCycle <= NUM_CYCLES; ++currentCycle) {
+        std::cout << "Current Cycle: " << currentCycle << "/" << NUM_CYCLES << std::endl;
+        *activeStation = 0;
+        while(*activeStation < NUM_STATIONS) {
+        // NOTE: This loop does the job, but it seems a little less clean
+            while(stationComplete[*activeStation] == false) {
+                // Spinlock until activeStation is properly pressed
+                // NOTE: When implmenting drones/players, we'll probably want 3 master threads, one for all drones, one for all stations, and one for all players
+            }
+            *activeStation = *activeStation + 1;
+            stationComplete[*activeStation-1] = false; // Signaling to thread that activestation has been changed
+        }
+    }
+
+    *gameOver = true;
+    std::cout << "GAME OVER FROM LEAD" << std::endl;
 }
