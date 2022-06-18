@@ -16,6 +16,7 @@ typedef unsigned int SOCKET_TYPE;
 typedef int SOCKET_TYPE;
 #endif
 
+// TODO: Use this?  Or not?  Not sure yet since it has to also be used in the hardware, and is easy enough to hardcode as 3
 #define BUTTONS_PER_STATION 3
 
 #include <iostream>
@@ -24,10 +25,16 @@ typedef int SOCKET_TYPE;
 #include <chrono>
 #include <vector>
 
-void processConnection(SOCKET_TYPE sock, bool* gameOver);
+void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation);
 void processDrone(SOCKET_TYPE sock, bool* gameOver);
 void processPlayer(SOCKET_TYPE sock, bool* gameOver);
-void processStation(SOCKET_TYPE sock, bool* gameOver);
+void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int stationID);
+
+#define NUM_DRONES 0
+#define NUM_STATIONS 2
+#define NUM_PLAYERS 0
+
+#define NUM_CYCLES 3 // Not yet implemented, but total cycles of all stations required to end the game
 
 int main() {
     #ifdef _WIN32
@@ -57,14 +64,15 @@ int main() {
     std::vector<std::thread*> threads;
     std::vector<SOCKET_TYPE> sockets;
     bool gameOver = false;
+    int activeStation = 0;
 
-    // NOTE: Hard coded to look for exactly 1 connections; needs to change to look for a certain number of drones, players, stations, or to just wait for a "START GAME" input
-    for(int i = 0; i < 1; ++i) {
+    // NOTE: Hard coded to look for exactly a certain number of connections; in the future could be modified to be an open lobby of connecting devices
+    for(int i = 0; i < NUM_DRONES + NUM_PLAYERS + NUM_STATIONS; ++i) {
         // Have threads figure out whether sender is Player, Station, or Drone on connect.  Then, process separately in separate functions dependent on that (Switch statement!)
         // Accept a connection request
         socklen_t sen_len = sizeof(sen_addr);
         SOCKET_TYPE newsock = accept(listeningSocket, (struct sockaddr *)&sen_addr, &sen_len);
-        threads.push_back(new std::thread(processConnection, newsock, &gameOver));
+        threads.push_back(new std::thread(processConnection, newsock, &gameOver, &activeStation));
         sockets.push_back(newsock);
     }
 
@@ -104,7 +112,7 @@ int main() {
 	return 0;
 }
 
-void processConnection(SOCKET_TYPE sock, bool* gameOver) {
+void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation) {
     std::cout << "Thread to process incoming connection" << std::endl;
     char buffer[100];
     int len = recv(sock, buffer, 100, 0);
@@ -121,7 +129,8 @@ void processConnection(SOCKET_TYPE sock, bool* gameOver) {
                 break;
             case 'S':
                 std::cout << "I just connected a station!" << std::endl;
-                processStation(sock, gameOver);
+                static int stationID = 0;
+                processStation(sock, gameOver, activeStation, stationID++);
                 break;
             default:
                 std::cout << "Unexpected identifier as first message: '" << buffer[0] << "'" << std::endl;
@@ -132,7 +141,8 @@ void processConnection(SOCKET_TYPE sock, bool* gameOver) {
 }
 
 void processDrone(SOCKET_TYPE sock, bool* gameOver) {
-    int len;
+    // NOTE: Not yet implemented to actually work with tello.  Commented out below is original sim test code
+    /* int len;
     char buffer[100];
     fd_set fds;
     FD_ZERO(&fds);
@@ -150,13 +160,18 @@ void processDrone(SOCKET_TYPE sock, bool* gameOver) {
         } else {
             FD_SET(sock, &fds);
         }
-    }
+    } */
 }
 
-void processStation(SOCKET_TYPE sock, bool* gameOver) {
+void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int stationID) {
+    std::cout << "Station ID Connected is: " << stationID << std::endl;
+    std::cout << "Active station is: " << *activeStation << std::endl;
     int len;
     char buffer[100];
     buffer[0] = 'E';
+    while(!*gameOver && *activeStation != stationID) {
+        // Spinlock until the active station is this ID, and enable the relevant station when necessary
+    }
     send(sock, buffer, 1, 0);
     // Reusing buffer after; note how it's set by recv further down so we don't need to reset it here
 
@@ -175,13 +190,17 @@ void processStation(SOCKET_TYPE sock, bool* gameOver) {
             buffer[len] = '\0';
             // std::cout << "Received message (" << len << "): " << buffer << std::endl;
             if(len % 3 != 0) {
+                // TODO: If byte length -1, connection lost, so don't spam this message
                 std::cout << "Unexpected byte length(" << len << "), full message is " << buffer << std::endl;
             } else {
                 for(int i = 0; i < len - 2; i += 3) {
-                    std::cout << "B1: " << buffer[i] << "\tB2: " << buffer[i+1] << "\tB3: " << buffer[i+2] << std::endl;
+                    std::cout << "Station " << stationID << "\tB1: " << buffer[i] << "\tB2: " << buffer[i+1] << "\tB3: " << buffer[i+2] << std::endl;
                     if(buffer[i] == '1' && buffer[i+1] == '1' && buffer[i+2] == '1') {
                         std::cout << "ALL BUTTONS PRESSED!  :)" << std::endl;
-                        std::this_thread::sleep_for(std::chrono::milliseconds(5000));
+                        *activeStation = (*activeStation + 1) % NUM_STATIONS;
+                        while(!*gameOver && *activeStation != stationID) {
+                            // Spinlock until the active station is this ID, and enable the relevant station when necessary
+                        }
                         buffer[0] = 'E';
                         send(sock, buffer, 1, 0);
                     }
@@ -194,10 +213,12 @@ void processStation(SOCKET_TYPE sock, bool* gameOver) {
 }
 
 void processPlayer(SOCKET_TYPE sock, bool* gameOver) {
-    while(!(*gameOver)) {
+    // NOTE: Not yet implemented to work with player vests because we haven't yet built them lol
+    
+    /* while(!(*gameOver)) {
         // Spin lock
         char message[100] = "WAITING...";
         send(sock, message, strlen(message) + 1, 0);
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    }
+    } */
 }
