@@ -25,10 +25,11 @@ typedef int SOCKET_TYPE;
 #include <chrono>
 #include <vector>
 
-void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation);
+// TODO: GameData struct for gameOver, activeStation, currentCycle, subdivided into DroneData, PlayerData, and StationData for the relevant processing comamnds
+void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int* currentCycle);
 void processDrone(SOCKET_TYPE sock, bool* gameOver);
 void processPlayer(SOCKET_TYPE sock, bool* gameOver);
-void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int stationID);
+void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int* currentCycle, int stationID);
 
 #define NUM_DRONES 0
 #define NUM_STATIONS 2
@@ -65,6 +66,7 @@ int main() {
     std::vector<SOCKET_TYPE> sockets;
     bool gameOver = false;
     int activeStation = 0;
+    int currentCycle = 0;
 
     // NOTE: Hard coded to look for exactly a certain number of connections; in the future could be modified to be an open lobby of connecting devices
     for(int i = 0; i < NUM_DRONES + NUM_PLAYERS + NUM_STATIONS; ++i) {
@@ -72,20 +74,20 @@ int main() {
         // Accept a connection request
         socklen_t sen_len = sizeof(sen_addr);
         SOCKET_TYPE newsock = accept(listeningSocket, (struct sockaddr *)&sen_addr, &sen_len);
-        threads.push_back(new std::thread(processConnection, newsock, &gameOver, &activeStation));
+        threads.push_back(new std::thread(processConnection, newsock, &gameOver, &activeStation, &currentCycle));
         sockets.push_back(newsock);
     }
 
     // Sleeping for 1 sec to ensure press enter comes at the bottom
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-    // Game Start!
-    std::cout << "Press Enter!" << std::endl;
-    std::string temp;
-    std::getline(std::cin, temp);
+    // // Game Start!
+    // std::cout << "Press Enter!" << std::endl;
+    // std::string temp;
+    // std::getline(std::cin, temp);
 
-    // Game End
-    gameOver = true;
+    // // Game End
+    // gameOver = true;
 
 
     // Join threads here, after the game has ended
@@ -112,7 +114,7 @@ int main() {
 	return 0;
 }
 
-void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation) {
+void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int* currentCycle) {
     std::cout << "Thread to process incoming connection" << std::endl;
     char buffer[100];
     int len = recv(sock, buffer, 100, 0);
@@ -130,7 +132,7 @@ void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation) {
             case 'S':
                 std::cout << "I just connected a station!" << std::endl;
                 static int stationID = 0;
-                processStation(sock, gameOver, activeStation, stationID++);
+                processStation(sock, gameOver, activeStation, currentCycle, stationID++);
                 break;
             default:
                 std::cout << "Unexpected identifier as first message: '" << buffer[0] << "'" << std::endl;
@@ -163,7 +165,8 @@ void processDrone(SOCKET_TYPE sock, bool* gameOver) {
     } */
 }
 
-void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int stationID) {
+// TODO: Instead of processing everything in processStation, have processStation modify array of booleans simply stating "done" or "not done".  Do logic in main thread
+void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int* currentCycle, int stationID) {
     std::cout << "Station ID Connected is: " << stationID << std::endl;
     std::cout << "Active station is: " << *activeStation << std::endl;
     int len;
@@ -198,6 +201,11 @@ void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int st
                     if(buffer[i] == '1' && buffer[i+1] == '1' && buffer[i+2] == '1') {
                         std::cout << "ALL BUTTONS PRESSED!  :)" << std::endl;
                         *activeStation = (*activeStation + 1) % NUM_STATIONS;
+                        if(*activeStation == 0) {
+                            std::cout << "Next cycle!" << std::endl;
+                            *currentCycle = *currentCycle + 1;
+                        }
+                        *gameOver = *currentCycle >= NUM_CYCLES;
                         while(!*gameOver && *activeStation != stationID) {
                             // Spinlock until the active station is this ID, and enable the relevant station when necessary
                         }
