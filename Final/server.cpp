@@ -26,10 +26,10 @@ typedef int SOCKET_TYPE;
 #include <vector>
 
 // TODO: GameData struct for gameOver, activeStation, currentCycle, subdivided into DroneData, PlayerData, and StationData for the relevant processing comamnds
-void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int* currentCycle);
+void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete);
 void processDrone(SOCKET_TYPE sock, bool* gameOver);
 void processPlayer(SOCKET_TYPE sock, bool* gameOver);
-void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int* currentCycle, int stationID);
+void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete, int stationID);
 
 #define NUM_DRONES 0
 #define NUM_STATIONS 2
@@ -67,6 +67,10 @@ int main() {
     bool gameOver = false;
     int activeStation = 0;
     int currentCycle = 0;
+    bool stationComplete[NUM_STATIONS];
+    for(int i = 0; i < NUM_STATIONS; ++i) {
+        stationComplete[i] = false;
+    }
 
     // NOTE: Hard coded to look for exactly a certain number of connections; in the future could be modified to be an open lobby of connecting devices
     for(int i = 0; i < NUM_DRONES + NUM_PLAYERS + NUM_STATIONS; ++i) {
@@ -74,21 +78,33 @@ int main() {
         // Accept a connection request
         socklen_t sen_len = sizeof(sen_addr);
         SOCKET_TYPE newsock = accept(listeningSocket, (struct sockaddr *)&sen_addr, &sen_len);
-        threads.push_back(new std::thread(processConnection, newsock, &gameOver, &activeStation, &currentCycle));
+        threads.push_back(new std::thread(processConnection, newsock, &gameOver, &activeStation, stationComplete));
         sockets.push_back(newsock);
     }
 
     // Sleeping for 1 sec to ensure press enter comes at the bottom
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-    // // Game Start!
-    // std::cout << "Press Enter!" << std::endl;
-    // std::string temp;
-    // std::getline(std::cin, temp);
+    // TODO: Need synchronization on game start so first station can't be pressed early.
+    // Game Start!
+    std::cout << "Game Start!" << std::endl;
+    for(int currentCycle = 1; currentCycle <= NUM_CYCLES; ++currentCycle) {
+        std::cout << "Current Cycle: " << currentCycle << "/" << NUM_CYCLES << std::endl;
+        activeStation = 0;
+        while(activeStation < NUM_STATIONS) {
+        // NOTE: This loop does the job, but it seems a little less clean
+            while(stationComplete[activeStation] == false) {
+                // Spinlock until activeStation is properly pressed
+                // NOTE: When implmenting drones/players, we'll probably want 3 master threads, one for all drones, one for all stations, and one for all players
+            }
+            ++activeStation;
+            stationComplete[activeStation-1] = false; // Signaling to thread that activestation has been changed
+        }
+    }
 
-    // // Game End
-    // gameOver = true;
+    gameOver = true;
 
+    std::cout << "Game Over!" << std::endl;
 
     // Join threads here, after the game has ended
     for(int i = 0; i < threads.size(); ++i) {
@@ -114,7 +130,7 @@ int main() {
 	return 0;
 }
 
-void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int* currentCycle) {
+void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete) {
     std::cout << "Thread to process incoming connection" << std::endl;
     char buffer[100];
     int len = recv(sock, buffer, 100, 0);
@@ -132,7 +148,7 @@ void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int
             case 'S':
                 std::cout << "I just connected a station!" << std::endl;
                 static int stationID = 0;
-                processStation(sock, gameOver, activeStation, currentCycle, stationID++);
+                processStation(sock, gameOver, activeStation, stationComplete, stationID++);
                 break;
             default:
                 std::cout << "Unexpected identifier as first message: '" << buffer[0] << "'" << std::endl;
@@ -166,7 +182,7 @@ void processDrone(SOCKET_TYPE sock, bool* gameOver) {
 }
 
 // TODO: Instead of processing everything in processStation, have processStation modify array of booleans simply stating "done" or "not done".  Do logic in main thread
-void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int* currentCycle, int stationID) {
+void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete, int stationID) {
     std::cout << "Station ID Connected is: " << stationID << std::endl;
     std::cout << "Active station is: " << *activeStation << std::endl;
     int len;
@@ -200,12 +216,12 @@ void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, int* c
                     std::cout << "Station " << stationID << "\tB1: " << buffer[i] << "\tB2: " << buffer[i+1] << "\tB3: " << buffer[i+2] << std::endl;
                     if(buffer[i] == '1' && buffer[i+1] == '1' && buffer[i+2] == '1') {
                         std::cout << "ALL BUTTONS PRESSED!  :)" << std::endl;
-                        *activeStation = (*activeStation + 1) % NUM_STATIONS;
-                        if(*activeStation == 0) {
-                            std::cout << "Next cycle!" << std::endl;
-                            *currentCycle = *currentCycle + 1;
+                        stationComplete[stationID] = true; // Letting the head thread know that this station has completed its task
+                        
+                        while(stationComplete[stationID]) {
+                            // First spinlock until master thread gest the chance to disable stationComplete (and modify activeStation so this isn't a passthrough)
                         }
-                        *gameOver = *currentCycle >= NUM_CYCLES;
+                        
                         while(!*gameOver && *activeStation != stationID) {
                             // Spinlock until the active station is this ID, and enable the relevant station when necessary
                         }
