@@ -92,12 +92,17 @@ int main() {
     control_threads.push_back(new std::thread(droneControl, &gameOver));
     control_threads.push_back(new std::thread(playerControl, &gameOver));
 
-    // Sleeping for 1 sec to ensure all threads get to their spinlocking
+    // Sleeping for 1 sec to ensure all threads get to their spinlocking, and so the press to start shows up last
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
     // TODO: Add back press enter but to start... I think it's with std::getline but I'll look at the logs later lmao
+    std::cout << "Press Enter to Start...";
+    std::string temp;
+    std::getline(std::cin, temp);
+
 
     // Game Start!
+    auto start = std::chrono::high_resolution_clock::now();
     std::cout << "Game Start!" << std::endl;
     gameOver = false;
 
@@ -109,8 +114,10 @@ int main() {
 
     // TODO: Stopwatch end here, display time
 
+    auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Game Over!" << std::endl;
-    std::cout << "TIME: ???" << std::endl;
+    std::cout << "TIME: " << std::endl;
+    std::cout << ((end-start).count()) / 1000000000.0 << " seconds " << std::endl;  // PRINTS SECONDS
 
     // Join threads here, after the game has ended
     for(int i = 0; i < threads.size(); ++i) {
