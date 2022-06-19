@@ -46,7 +46,7 @@ int main() {
         WSADATA wsa;
         printf("\nInitializing Winsock...");
         if (WSAStartup(MAKEWORD(2,2),&wsa) != 0) {
-            printf("Failed. Error Code : %d",WSAGetLastError());
+            printf("Failed. Error Code : %d", WSAGetLastError());
             return 1;
         }
         printf("Initialized.\n");
@@ -79,8 +79,7 @@ int main() {
 
     // NOTE: Hard coded to look for exactly a certain number of connections; in the future could be modified to be an open lobby of connecting devices
     for(int i = 0; i < NUM_DRONES + NUM_PLAYERS + NUM_STATIONS; ++i) {
-        // Have threads figure out whether sender is Player, Station, or Drone on connect.  Then, process separately in separate functions dependent on that (Switch statement!)
-        // Accept a connection request
+        // Thread figures out whether sender is Player, Station, or Drone on connect
         socklen_t sen_len = sizeof(sen_addr);
         SOCKET_TYPE newsock = accept(listeningSocket, (struct sockaddr *)&sen_addr, &sen_len);
         threads.push_back(new std::thread(processConnection, newsock, &gameOver, &activeStation, stationComplete));
@@ -95,24 +94,18 @@ int main() {
     // Sleeping for 1 sec to ensure all threads get to their spinlocking, and so the press to start shows up last
     std::this_thread::sleep_for(std::chrono::milliseconds(1000));
 
-    // TODO: Add back press enter but to start... I think it's with std::getline but I'll look at the logs later lmao
     std::cout << "Press Enter to Start...";
     std::string temp;
     std::getline(std::cin, temp);
-
 
     // Game Start!
     auto start = std::chrono::high_resolution_clock::now();
     std::cout << "Game Start!" << std::endl;
     gameOver = false;
 
-    // TODO: Stopwatch start here
-
     while(!gameOver) {
         // spinlock until stationControl calls the game to a close
     }
-
-    // TODO: Stopwatch end here, display time
 
     auto end = std::chrono::high_resolution_clock::now();
     std::cout << "Game Over!" << std::endl;
@@ -180,9 +173,8 @@ void processDrone(SOCKET_TYPE sock, bool* gameOver) {
     // NOTE: Not yet implemented to actually work with tello.
 }
 
-// TODO: Instead of processing everything in processStation, have processStation modify array of booleans simply stating "done" or "not done".  Do logic in main thread
 void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete, int stationID) {
-    std::cout << "Station ID Connected is: " << stationID << std::endl;
+    std::cout << "Station " << stationID << " Connected" << std::endl;
     while (*gameOver) {
         // Spinlock until gameOver is disabled aka until game has begun
     }
@@ -253,7 +245,6 @@ void stationControl(bool* gameOver, int* activeStation, bool* stationComplete) {
             std::cout << "Active station: " << *activeStation << std::endl;
             while(stationComplete[*activeStation] == false) {
                 // Spinlock until activeStation is properly pressed
-                // NOTE: When implmenting drones/players, we'll probably want 3 master threads, one for all drones, one for all stations, and one for all players
             }
             *activeStation = *activeStation + 1;
             stationComplete[*activeStation-1] = false; // Signaling to thread that activestation has been changed
