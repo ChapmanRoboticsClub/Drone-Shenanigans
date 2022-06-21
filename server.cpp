@@ -27,7 +27,7 @@ typedef int SOCKET_TYPE;
 
 // TODO: GameData struct for gameOver, activeStation, currentCycle, subdivided into DroneData, PlayerData, and StationData for the relevant processing comamnds
 void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete);
-void processDrone(SOCKET_TYPE sock, bool* gameOver);
+void processDrone(SOCKET_TYPE sock, bool* gameOver, int droneID);
 void processPlayer(SOCKET_TYPE sock, bool* gameOver);
 void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete, int stationID);
 
@@ -150,7 +150,8 @@ void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, boo
         switch(buffer[0]) {
             case 'D':
                 std::cout << "I just connected a drone!" << std::endl;
-                processDrone(sock, gameOver);
+                static int droneID = 0;
+                processDrone(sock, gameOver, droneID++);
                 break;
             case 'P':
                 std::cout << "I just connected a player!" << std::endl;
@@ -169,8 +170,25 @@ void processConnection(SOCKET_TYPE sock, bool* gameOver, int* activeStation, boo
     }
 }
 
-void processDrone(SOCKET_TYPE sock, bool* gameOver) {
+void processDrone(SOCKET_TYPE sock, bool* gameOver, int droneID) {
     // NOTE: Not yet implemented to actually work with tello.
+    std::cout << "Drone " << droneID << " Connected" << std::endl;
+    char idMessage[] = "TELLO-F1AFF9";
+    send(sock, idMessage, strlen(idMessage) + 1, 0);
+    while (*gameOver) {
+        // Spinlock until gameOver is disabled aka until game has begun
+    }
+
+    char takeoff[] = "takeoff";
+    char rotate[] = "rotate";
+    char somethi[] = "somethi";
+
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    send(sock, takeoff, strlen(takeoff) + 1, 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    send(sock, somethi, strlen(somethi) + 1, 0);
+    std::this_thread::sleep_for(std::chrono::milliseconds(1000));
+    send(sock, rotate, strlen(rotate) + 1, 0);
 }
 
 void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* stationComplete, int stationID) {
@@ -204,7 +222,7 @@ void processStation(SOCKET_TYPE sock, bool* gameOver, int* activeStation, bool* 
                 std::cout << "Unexpected byte length(" << len << "), full message is " << buffer << std::endl;
             } else {
                 for(int i = 0; i < len - 2; i += 3) {
-                    std::cout << "Station " << stationID << "\tB1: " << buffer[i] << "\tB2: " << buffer[i+1] << "\tB3: " << buffer[i+2] << std::endl;
+                    // std::cout << "Station " << stationID << "\tB1: " << buffer[i] << "\tB2: " << buffer[i+1] << "\tB3: " << buffer[i+2] << std::endl;
                     if(buffer[i] == '1' && buffer[i+1] == '1' && buffer[i+2] == '1') {
                         std::cout << "ALL BUTTONS PRESSED!  :)" << std::endl;
                         stationComplete[stationID] = true; // Letting the head thread know that this station has completed its task
@@ -259,6 +277,8 @@ void droneControl(bool* gameOver) {
     while (*gameOver) {
         // Spinlock until gameOver is disabled aka until game has begun
     }
+
+    // TODO: Somehow swarm the drones
 }
 
 void playerControl(bool* gameOver) {
